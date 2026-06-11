@@ -1,0 +1,248 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ─── Enums ────────────────────────────────────────────────────────────────────
+
+enum Role {
+  ADMIN
+  STANDARD
+}
+
+enum AlertType {
+  DAILY
+  WEEKLY
+}
+
+enum InvoiceStatus {
+  DRAFT
+  OPEN
+  SENT
+  RESENT
+  PAID
+  PAID_CLOSED
+}
+
+enum AuditEntityType {
+  PROJECT
+  TIME_ENTRY
+}
+
+enum AuditAction {
+  CREATE
+  UPDATE
+  DELETE
+}
+
+// ─── Users ────────────────────────────────────────────────────────────────────
+
+model User {
+  id             String    @id @default(uuid())
+  email          String    @unique
+  passwordHash   String
+  firstName      String
+  lastName       String
+  role           Role      @default(STANDARD)
+  isActive       Boolean   @default(true)
+  // Prefix used in generated invoice numbers (e.g. "ACME" → ACME-2026-0001)
+  invoicePrefix       String?   @default("")
+  // Gmail credentials for per-user invoice/alert sending
+  gmailUser           String?
+  // AES-256-GCM encrypted Gmail App Password (never returned via API)
+  gmailAppPasswordEnc String?
+  // Hashed refresh token (bcrypt); null when logged out
+  refreshToken   String?
+  lastLoginAt    DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  timeEntries TimeEntry[]
+  alerts      Alert[]
+  invoices    Invoice[]
+  ownedClients Client[]
+  auditLogs   AuditLog[]
+
+  @@index([email])
+  @@map("users")
+}
+
+// ─── Clients ──────────────────────────────────────────────────────────────────
+
+model Client {
+  id        String   @id @default(uuid())
+  ownerId   String?
+  isShared  Boolean  @default(false)
+  name      String
+  email     String?
+  phone     String?
+  address   String?
+  city      String?
+  state     String?
+  zip       String?
+  country   String?
+  notes     String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  owner    User?     @relation(fields: [ownerId], references: [id], onDelete: SetNull)
+  projects Project[]
+  invoices Invoice[]
+
+  @@index([name])
+  @@index([ownerId])
+  @@map("clients")
+}
+
+// ─── Projects ────────────────────────────────────────────────────────────────
+
+model Project {
+  id          String   @id @default(uuid())
+  clientId    String
+  name        String
+  description String?
+  costPerHour Decimal  @db.Decimal(10, 2)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  client      Client      @relation(fields: [clientId], references: [id])
+  timeEntries TimeEntry[]
+  alerts      Alert[]
+
+  @@index([clientId])
+  @@map("projects")
+}
+
+// ─── Time Entries ────────────────────────────────────────────────────────────
+
+model TimeEntry {
+  id          String   @id @default(uuid())
+  userId      String
+  projectId   String
+  /// ISO date (date-only stored as timestamptz midnight UTC)
+  date        DateTime @db.Date
+  /// Supports quarter-hour increments (e.g. 0.25, 0.50, 0.75)
+  hours       Decimal  @db.Decimal(5, 2)
+  description String?
+  /// True once entry has been included on a DRAFT+ invoice
+  isBilled    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user         User          @relation(fields: [userId], references: [id])
+  project      Project       @relation(fields: [projectId], references: [id])
+  invoiceItems InvoiceItem[]
+
+  @@index([userId])
+  @@index([projectId])
+  @@index([date])
+  @@index([userId, date])
+  @@index([isBilled])
+  @@map("time_entries")
+}
+
+// ─── Alerts ───────────────────────────────────────────────────────────────────
+
+model Alert {
+  id        String    @id @default(uuid())
+  userId    String
+  projectId String
+  type      AlertType
+  isEnabled Boolean   @default(true)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  user    User    @relation(fields: [userId], references: [id])
+  project Project @relation(fields: [projectId], references: [id])
+
+  // One alert per user/project/type combination
+  @@unique([userId, projectId, type])
+  @@index([userId])
+  @@map("alerts")
+}
+
+// ─── Invoices ────────────────────────────────────────────────────────────────
+
+model Invoice {
+  id            String        @id @default(uuid())
+  userId        String
+  clientId      String
+  invoiceNumber String        @unique
+  status        InvoiceStatus @default(DRAFT)
+  issueDate     DateTime      @db.Date
+  dueDate       DateTime      @db.Date
+  /// The date range of time entries covered by this invoice
+  periodStart   DateTime      @db.Date
+  periodEnd     DateTime      @db.Date
+  subtotal      Decimal       @default(0) @db.Decimal(10, 2)
+  taxRate       Decimal       @default(0) @db.Decimal(5, 2)
+  taxAmount     Decimal       @default(0) @db.Decimal(10, 2)
+  total         Decimal       @default(0) @db.Decimal(10, 2)
+  notes         String?
+  sentAt        DateTime?
+  resentAt      DateTime?
+  paidAt        DateTime?
+  closedAt      DateTime?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  user   User          @relation(fields: [userId], references: [id])
+  client Client        @relation(fields: [clientId], references: [id])
+  items  InvoiceItem[]
+
+  @@index([userId])
+  @@index([clientId])
+  @@index([status])
+  @@map("invoices")
+}
+
+// ─── Invoice Line Items ───────────────────────────────────────────────────────
+
+model InvoiceItem {
+  id          String   @id @default(uuid())
+  invoiceId   String
+  /// Null for manually-added line items
+  timeEntryId String?  @unique
+  date        DateTime @db.Date
+  description String
+  hours       Decimal  @db.Decimal(5, 2)
+  rate        Decimal  @db.Decimal(10, 2)
+  amount      Decimal  @db.Decimal(10, 2)
+  createdAt   DateTime @default(now())
+
+  invoice   Invoice    @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  timeEntry TimeEntry? @relation(fields: [timeEntryId], references: [id])
+
+  @@index([invoiceId])
+  @@map("invoice_items")
+}
+
+// ─── Audit Logs ───────────────────────────────────────────────────────────────
+
+model AuditLog {
+  id           String          @id @default(uuid())
+  entityType   AuditEntityType
+  entityId     String
+  action       AuditAction
+  changedById  String
+  reason       String?
+  previousData Json?
+  newData      Json?
+  createdAt    DateTime        @default(now())
+
+  changedBy User @relation(fields: [changedById], references: [id])
+
+  @@index([entityType, entityId])
+  @@index([changedById])
+  @@index([createdAt])
+  @@map("audit_logs")
+}

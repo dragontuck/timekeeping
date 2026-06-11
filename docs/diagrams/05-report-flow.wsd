@@ -1,0 +1,90 @@
+title Report Generation Workflow
+
+actor User
+participant Browser
+participant "Web App\n(React SPA)" as Web
+participant "API\n(Node.js)" as API
+participant "Database\n(PostgreSQL)" as DB
+participant "PDF Service\n(pdfkit)" as PDF
+
+note over User,PDF: ── Configure Report ────────────────────────────────
+
+User->Browser: Navigate to Reports
+Web-->User: Report configuration panel:\n  Type: [Monthly|Quarterly|Yearly]\n  Period selector\n  Client filter (optional)\n  User filter (Admin only)\n  [Generate Report] button
+
+note over User,PDF: ── Monthly Report ──────────────────────────────────
+
+User->Browser: Type=Monthly, Period=June 2026\nClient=All, click Generate
+
+Web->Web: Build query params: year=2026, month=6
+Web->API: GET /v1/reports/monthly?year=2026&month=6
+API->API: Verify JWT, authorize
+API->DB: SELECT\n  c.name AS client,\n  p.name AS project,\n  p.costPerHour AS rate,\n  u.firstName, u.lastName,\n  SUM(te.hours) AS totalHours,\n  SUM(te.hours * p.costPerHour) AS totalCost\nFROM time_entries te\nJOIN projects p ON te.projectId=p.id\nJOIN clients c ON p.clientId=c.id\nJOIN users u ON te.userId=u.id\nWHERE date_trunc('month', te.date) =\n  date_trunc('month', make_date(2026,6,1))\n[AND c.id=?  — if clientId filter applied]\n[AND te.userId=? — if not admin, restrict to self]\nGROUP BY c.id, c.name, p.id, p.name, p.costPerHour,\n  u.id, u.firstName, u.lastName\nORDER BY c.name, p.name, u.lastName
+
+DB-->API: Aggregated rows
+
+API->API: Build response:\n{\n  period: "June 2026",\n  summary: [\n    { client, project, user, hours, cost },\n    ...\n  ],\n  clientTotals: [ { client, hours, cost }, ... ],\n  grandTotal: { hours, cost }\n}
+
+API-->Web: 200 { data: reportData }
+Web-->User: Rendered table:\n  Client | Project | User | Hours | Rate | Amount\n  ─────────────────────────────────────────\n  Acme   | Website | Jane | 40h   | $150 | $6,000\n  Acme   | Website | Bob  | 20h   | $150 | $3,000\n  ─ Acme subtotal ────────────── 60h     $9,000\n  Beta   | API Int | Jane | 16h   | $175 | $2,800\n  ─ Beta subtotal ─────────────  16h     $2,800\n  ════════ TOTAL ══════════════  76h     $11,800
+
+note over User,PDF: ── Quarterly Report ────────────────────────────────
+
+User->Browser: Type=Quarterly, Period=Q2 2026, click Generate
+Web->API: GET /v1/reports/quarterly?year=2026&quarter=2
+API->DB: Aggregate 3 months (Apr, May, Jun 2026)\nGROUP BY month + client + project + user
+DB-->API: 3-month breakdown
+
+API->API: Build monthly breakdown + 3-month totals
+API-->Web: { months: [{month, entries, total}, ...],\n  quarterTotal: { hours, cost } }
+
+Web-->User: Report with:\n  ┌──────┬──────┬──────┬──────────┐\n  │ Apr  │ May  │ Jun  │ Q2 Total │\n  ├──────┼──────┼──────┼──────────┤\n  │ 60h  │ 72h  │ 76h  │  208h    │\n  │ $9K  │$10.8K│$11.8K│ $31.6K   │\n  └──────┴──────┴──────┴──────────┘
+
+note over User,PDF: ── Yearly Report ───────────────────────────────────
+
+User->Browser: Type=Yearly, Period=2026, click Generate
+Web->API: GET /v1/reports/yearly?year=2026
+API->DB: Aggregate all 12 months of 2026\nGROUP BY month + client + project
+
+DB-->API: Full year data
+
+API->API: Build 12-month breakdown + quarterly rollups + year total
+API-->Web: { months: [...], quarters: [...], yearTotal: {...} }
+
+Web-->User: Yearly report with:\n  Monthly trend table (Jan–Dec)\n  Quarterly comparison\n  Top clients by revenue\n  Top projects by hours
+
+note over User,PDF: ── Export Report as PDF ────────────────────────────
+
+User->Browser: Click "Export PDF"
+Web->API: GET /v1/reports/monthly/pdf?year=2026&month=6\n  (same filters as current report)
+API->DB: Re-run same aggregate query
+DB-->API: Report data
+
+API->PDF: buildReportPdf({\n  title: "Monthly Report – June 2026",\n  generatedAt: now(),\n  reportData,\n  generatedBy: "Jane Smith"\n})
+
+note over PDF: pdfkit renders:\n  Header: Company + Report Title + Period\n  Summary table\n  Client subtotals\n  Grand total\n  Page numbers
+
+PDF-->API: PDF Buffer
+API-->Browser: 200 Content-Type: application/pdf\nContent-Disposition: attachment;\nfilename="report-monthly-2026-06.pdf"
+Browser-->User: PDF downloaded
+
+note over User,PDF: ── Report by Client ────────────────────────────────
+
+User->Browser: Select client "Acme Corp", Type=Yearly
+Web->API: GET /v1/reports/yearly?year=2026&clientId=<acmeId>
+API->DB: Filter WHERE c.id=? + full year aggregation
+DB-->API: Acme-only data
+API-->Web: Acme full-year breakdown
+Web-->User: Client-specific yearly report\n  All projects, all users, by month
+
+note over User,PDF: ── Admin: All-User Report ───────────────────────────
+
+note over API: Admin role can view all users' data\nStandard role sees only own entries
+
+User->Browser: (Admin) Check "All Users"
+Web->API: GET /v1/reports/monthly?year=2026&month=6\n  (No userId filter because admin)
+API->API: role=ADMIN: skip userId filter
+API->DB: Aggregate all users
+DB-->API: All-user data
+API-->Web: Report with user breakdown
+Web-->User: Full team report with per-user rows

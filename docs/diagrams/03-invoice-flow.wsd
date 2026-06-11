@@ -1,0 +1,141 @@
+title Invoice Creation, Management & Sending Workflow
+
+actor User
+participant Browser
+participant "Web App\n(React SPA)" as Web
+participant "API\n(Node.js)" as API
+participant "Database\n(PostgreSQL)" as DB
+participant "PDF Service\n(pdfkit)" as PDF
+participant "Email Service\n(nodemailer / Gmail)" as Email
+participant "Client\n(Invoice Recipient)" as Client
+
+note over User,Client: ── Create Invoice ───────────────────────────────────
+
+User->Browser: Navigate to Invoices → "Create Invoice"
+Web->API: GET /v1/clients?active=true
+API->DB: SELECT * FROM clients WHERE isActive=true
+DB-->API: Client list
+API-->Web: Clients
+Web-->User: Client dropdown
+
+User->Browser: Select client "Acme Corp"
+Web->API: GET /v1/time-entries?clientId=<acmeId>&isBilled=false
+API->DB: SELECT te.*, p.name, p.costPerHour, c.name\nFROM time_entries te\nJOIN projects p ON te.projectId=p.id\nJOIN clients c ON p.clientId=c.id\nWHERE c.id=? AND te.isBilled=false AND te.userId=?\nORDER BY te.date
+
+DB-->API: Unbilled time entries for Acme
+API-->Web: { data: timeEntries }
+Web-->User: Grouped list of unbilled entries with hours + amounts
+
+User->Browser: Select entries (May + June 2026)\nSet: issueDate, dueDate, taxRate=8%, notes="Net 30"
+Browser->Web: Click "Create Invoice"
+Web->Web: Validate form (Zod)
+Web->API: POST /v1/invoices\n{ clientId, issueDate, dueDate, periodStart, periodEnd,\n  timeEntryIds: [...], taxRate: 8, notes: "Net 30" }
+
+API->API: Validate request (Zod)
+API->API: Verify JWT, extract userId
+API->DB: SELECT * FROM time_entries WHERE id IN (...) AND isBilled=false
+DB-->API: Verify all entries exist and are unbilled
+API->DB: SELECT invoicePrefix FROM users WHERE id=?
+DB-->API: User's prefix (e.g., "ACME")
+API->DB: SELECT MAX(invoiceNumber) FROM invoices\nWHERE invoiceNumber LIKE 'ACME-2026-%'
+DB-->API: Last sequence number
+API->API: Generate number: "ACME-2026-0042"
+API->API: Calculate line item amounts: hours × costPerHour\nSubtotal = sum(amounts)\nTaxAmount = subtotal × taxRate / 100\nTotal = subtotal + taxAmount
+
+API->DB: BEGIN TRANSACTION\nINSERT INTO invoices { status: DRAFT, invoiceNumber, ... }\nINSERT INTO invoice_items [...]\nUPDATE time_entries SET isBilled=true WHERE id IN (...)\nCOMMIT
+
+DB-->API: Invoice + items created
+API-->Web: 201 { data: { invoice, items } }
+Web-->User: Invoice detail page (status: DRAFT)\nLine items, subtotal, tax, total
+
+note over User,Client: ── Review and Open ──────────────────────────────────
+
+User->Browser: Review invoice, click "Mark as Open"
+Web->API: PATCH /v1/invoices/:id/status { status: "OPEN" }
+API->API: Validate status transition DRAFT → OPEN
+API->DB: UPDATE invoices SET status='OPEN' WHERE id=?
+DB-->API: Updated
+API-->Web: 200 { data: updatedInvoice }
+Web-->User: Status badge: OPEN
+
+note over User,Client: ── Generate & Preview PDF ───────────────────────────
+
+User->Browser: Click "Preview PDF"
+Web->Browser: GET https://api.timekeeping.local/v1/invoices/:id/pdf\n(opens in new tab)
+Browser->API: GET /v1/invoices/:id/pdf\nAuthorization: Bearer <token>
+API->DB: SELECT invoice + items + client + user\nFROM invoices JOIN ...
+DB-->API: Full invoice data
+
+API->PDF: buildInvoicePdf(invoiceData)
+note over PDF: pdfkit renders:\n- Company header\n- Bill To: client info\n- Invoice # / Date / Due Date\n- Line items table\n- Subtotal / Tax / Total\n- Notes / Payment terms
+
+PDF-->API: PDF Buffer
+API-->Browser: 200 Content-Type: application/pdf\nContent-Disposition: inline; filename="ACME-2026-0042.pdf"
+Browser-->User: PDF rendered in new tab
+
+note over User,Client: ── Send Invoice ─────────────────────────────────────
+
+User->Browser: Click "Send Invoice"
+Web-->User: Confirm dialog:\n"Send to client@acmecorp.com?"
+User->Browser: Confirm Send
+
+Web->API: POST /v1/invoices/:id/send
+API->API: Validate status is OPEN or RESENT
+API->DB: SELECT invoice + items + client + user
+DB-->API: Full invoice data
+
+API->PDF: buildInvoicePdf(invoiceData)
+PDF-->API: PDF Buffer
+
+API->Email: sendInvoiceEmail({\n  to: client.email,\n  subject: "Invoice ACME-2026-0042 from TimeKeeping",\n  htmlBody: renderInvoiceEmailTemplate(invoice),\n  attachment: pdfBuffer\n})
+
+Email->Client: 📧 Email + PDF attachment
+note over Email,Client: Gmail SMTP via App Password
+
+Client-->Email: (delivery receipt)
+Email-->API: Sent successfully
+
+API->DB: UPDATE invoices SET status='SENT', sentAt=NOW()
+DB-->API: Updated
+API-->Web: 200 { data: { status: 'SENT', sentAt: '...' } }
+Web-->User: Toast: "Invoice sent to client@acmecorp.com"\nStatus badge: SENT
+
+note over User,Client: ── Resend Invoice ───────────────────────────────────
+
+User->Browser: Click "Resend"
+Web->API: POST /v1/invoices/:id/send (same endpoint)
+note over API: status SENT → RESENT on resend
+API->PDF: Re-generate PDF
+PDF-->API: PDF Buffer
+API->Email: Resend with "Reminder:" subject prefix
+Email->Client: 📧 Reminder email
+API->DB: UPDATE SET status='RESENT', resentAt=NOW()
+DB-->API: Updated
+API-->Web: 200 status: RESENT
+
+note over User,Client: ── Track Payment ────────────────────────────────────
+
+Client-->User: Client pays invoice
+
+User->Browser: Click "Mark as Paid"
+Web->API: PATCH /v1/invoices/:id/status { status: "PAID" }
+API->API: Validate: SENT|RESENT → PAID
+API->DB: UPDATE SET status='PAID', paidAt=NOW()
+DB-->API: Updated
+API-->Web: Status: PAID + paidAt date shown
+
+User->Browser: Click "Close Invoice"
+Web->API: PATCH /v1/invoices/:id/status { status: "PAID_CLOSED" }
+API->API: Validate: PAID → PAID_CLOSED
+API->DB: UPDATE SET status='PAID_CLOSED', closedAt=NOW()
+DB-->API: Updated
+API-->Web: Status: PAID_CLOSED (archived)
+
+note over User,Client: ── Download Invoice PDF ─────────────────────────────
+
+User->Browser: Click "Download PDF"
+Web->Browser: GET /v1/invoices/:id/pdf?download=true
+API->PDF: buildInvoicePdf(invoiceData)
+PDF-->API: PDF Buffer
+API-->Browser: 200 Content-Disposition: attachment;\nfilename="ACME-2026-0042.pdf"
+Browser-->User: PDF downloaded

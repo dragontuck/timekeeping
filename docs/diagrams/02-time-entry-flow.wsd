@@ -1,0 +1,119 @@
+title Time Entry Workflow
+
+actor User
+participant Browser
+participant "Web App\n(React SPA)" as Web
+participant "API\n(Node.js)" as API
+participant "Database\n(PostgreSQL)" as DB
+participant "Scheduler\n(node-cron)" as Cron
+participant "Email Service\n(nodemailer)" as Email
+
+note over User,Email: ── Daily Time Entry ────────────────────────────────
+
+User->Browser: Navigate to Time Entries → Daily View
+Browser->Web: Route: /time-entries?view=daily
+
+Web->API: GET /v1/clients (active=true)
+Web->API: GET /v1/time-entries?date=2026-06-11&userId=me
+note over Web,API: Parallel requests
+
+API->DB: SELECT * FROM clients WHERE isActive=true
+API->DB: SELECT te.*, p.name, p.costPerHour, c.name\nFROM time_entries te\nJOIN projects p ON te.projectId=p.id\nJOIN clients c ON p.clientId=c.id\nWHERE te.userId=? AND te.date=?
+
+DB-->API: Clients list
+DB-->API: Today's entries
+
+API-->Web: { data: clients }
+API-->Web: { data: timeEntries, meta: { totalHours } }
+Web-->User: Daily view with existing entries + "Add Entry" button
+
+User->Browser: Click "+ Add Entry"
+Web-->User: Entry form modal:\nClient ▼ → Project ▼ → Date → Hours → Description
+
+User->Browser: Select Client "Acme Corp"
+Web->API: GET /v1/projects?clientId=<acmeId>&active=true
+API->DB: SELECT * FROM projects WHERE clientId=? AND isActive=true
+DB-->API: Acme's projects
+API-->Web: { data: projects }
+Web-->User: Populate Project dropdown
+
+User->Browser: Select Project "Website Redesign"\nDate: 2026-06-11, Hours: 3.5, Description: "Frontend work"
+Browser->Web: Submit form
+Web->Web: Validate (Zod): hours 0.25–24, date required, projectId required
+
+Web->API: POST /v1/time-entries\n{ projectId, date: "2026-06-11", hours: 3.5, description: "Frontend work" }
+API->API: Validate request body (Zod)
+API->API: Verify JWT, extract userId
+API->DB: SELECT * FROM projects WHERE id=? AND isActive=true
+DB-->API: Project (with costPerHour)
+API->DB: INSERT INTO time_entries(userId, projectId, date, hours, description)
+DB-->API: Created time entry { id, ... }
+API-->Web: 201 { data: createdEntry }
+Web-->User: Toast: "Entry saved (3.5h @ $150/hr = $525)"
+Web->Web: Invalidate React Query cache → refetch daily totals
+
+note over User,Email: ── Weekly Time Entry View ──────────────────────────
+
+User->Browser: Switch to Weekly View
+Web->API: GET /v1/time-entries/weekly?weekStart=2026-06-08
+API->DB: SELECT te.*, p.name, p.costPerHour, c.name\nFROM time_entries te ...\nWHERE te.userId=? AND te.date BETWEEN ? AND ?\nORDER BY te.date, p.name
+DB-->API: Entries for Mon–Sun
+API->API: Group by day, aggregate totals per project and day
+API-->Web: { data: weeklyGrid, meta: { totalHours, totalCost } }
+Web-->User: 7-column grid: days × projects with hour cells\nRow/column totals, overall weekly total
+
+User->Browser: Click cell to add/edit entry inline
+Web->API: PATCH /v1/time-entries/:id { hours: 4.0 }
+API->DB: UPDATE time_entries SET hours=4.0 WHERE id=? AND userId=?
+DB-->API: Updated entry
+API-->Web: 200 { data: updatedEntry }
+Web-->User: Cell updated in-place
+
+note over User,Email: ── Edit / Delete Entry ─────────────────────────────
+
+User->Browser: Click Edit on existing entry
+Web-->User: Pre-filled form modal
+User->Browser: Change hours to 2.0, save
+Web->API: PATCH /v1/time-entries/:id { hours: 2.0 }
+API->API: Check entry not billed (isBilled=false)
+note over API: Billed entries are read-only → 403 if isBilled=true
+API->DB: UPDATE time_entries SET hours=2.0
+DB-->API: Updated
+API-->Web: 200 + updated entry
+Web-->User: Entry updated
+
+User->Browser: Click Delete
+Web-->User: Confirm dialog
+User->Browser: Confirm
+Web->API: DELETE /v1/time-entries/:id
+API->API: Check isBilled=false
+API->DB: DELETE FROM time_entries WHERE id=? AND userId=?
+DB-->API: Deleted
+API-->Web: 204 No Content
+Web-->User: Entry removed
+
+note over Cron,Email: ── Daily Alert Scheduler (9:00 AM weekdays) ────────
+
+Cron->Cron: Fires: 0 9 * * 1-5
+
+Cron->DB: SELECT a.userId, a.projectId, u.email, u.firstName,\n  p.name AS projectName, c.name AS clientName\nFROM alerts a\nJOIN users u ON a.userId=u.id\nJOIN projects p ON a.projectId=p.id\nJOIN clients c ON p.clientId=c.id\nWHERE a.type='DAILY' AND a.isEnabled=true AND u.isActive=true
+DB-->Cron: Active daily alert subscriptions
+
+Cron->DB: For each userId: SELECT te.projectId FROM time_entries te\nWHERE te.userId=? AND te.date=TODAY
+DB-->Cron: Projects logged today (per user)
+
+Cron->Cron: Diff: subscribed projects minus logged projects\n= missing entries per user
+
+Cron->Email: Send per-user email:\n"Hi {firstName}, reminder to log time for:\n- {clientName} / {projectName}\n..."
+Email-->User: Email: "Daily Time Entry Reminder"
+
+note over Cron,Email: ── Weekly Alert Scheduler (Friday 4:00 PM) ─────────
+
+Cron->Cron: Fires: 0 16 * * 5
+
+Cron->DB: SELECT a.userId, SUM(te.hours) as weekHours,\n  p.name, c.name\nFROM alerts a ... WHERE a.type='WEEKLY'\nLEFT JOIN time_entries te ON te.userId=a.userId\n  AND te.projectId=a.projectId\n  AND te.date BETWEEN weekStart AND today\nGROUP BY a.userId, a.projectId
+
+DB-->Cron: Weekly summaries per user/project
+
+Cron->Email: Send per-user weekly summary email with\ntotals per project and flag of any zero-hour days
+Email-->User: Email: "Weekly Time Summary"

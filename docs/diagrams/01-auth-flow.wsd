@@ -1,0 +1,87 @@
+title Authentication Workflow
+
+actor User
+participant Browser
+participant "Nginx\n(Reverse Proxy)" as Nginx
+participant "Web App\n(React SPA)" as Web
+participant "API\n(Node.js / Express)" as API
+participant "Database\n(PostgreSQL)" as DB
+
+note over Browser,DB: ── Initial Login ─────────────────────────────────
+
+User->Browser: Navigate to https://web.timekeeping.local
+Browser->Nginx: GET / (HTTPS 443)
+Nginx->Web: Proxy → web:3000
+Web-->Browser: Render Login page
+
+User->Browser: Enter email + password, click Login
+Browser->Web: Submit form
+Web->Web: Validate form (Zod)
+Web->Nginx: POST https://api.timekeeping.local/v1/auth/login\n{ email, password }
+Nginx->API: Rate-limited proxy → api:4000/v1/auth/login
+
+API->API: Validate request body (Zod)
+API->DB: SELECT * FROM users WHERE email = ?
+DB-->API: User record (with passwordHash)
+
+API->API: bcrypt.compare(password, passwordHash) [cost=12]
+note over API: Reject if compare fails → 401
+
+API->API: Generate access token\nJWT HS256, payload={sub,email,role}\nExpires: 15 minutes
+API->API: Generate refresh token\nJWT HS256, Expires: 7 days
+
+API->API: bcrypt.hash(refreshToken) → hashedRefresh
+API->DB: UPDATE users SET refreshToken=hashedRefresh,\nlastLoginAt=now() WHERE id=?
+DB-->API: Updated
+
+API-->Nginx: 200 OK\n{ accessToken, user: {id,email,role,firstName,lastName} }\nSet-Cookie: refreshToken=<jwt>; HttpOnly; Secure;\nSameSite=Strict; Max-Age=604800; Path=/v1/auth
+
+Nginx-->Browser: 200 + body + Set-Cookie header
+Browser->Web: Store accessToken in memory (NOT localStorage)
+Web-->User: Redirect → Dashboard
+
+note over Browser,DB: ── Authenticated API Request ─────────────────────
+
+User->Browser: Navigate to Time Entries
+Browser->Web: Route change
+Web->Nginx: GET https://api.timekeeping.local/v1/time-entries\nAuthorization: Bearer <accessToken>
+Nginx->API: Proxy → api:4000
+API->API: Verify JWT signature & expiry
+API->DB: SELECT ... FROM time_entries WHERE userId=?
+DB-->API: Entries
+API-->Nginx: 200 + { data: [...], meta: {...} }
+Nginx-->Browser: 200 + JSON
+Web-->User: Render time entries
+
+note over Browser,DB: ── Silent Token Refresh (access token expires) ────
+
+Browser->Web: Axios interceptor catches 401
+Web->Nginx: POST https://api.timekeeping.local/v1/auth/refresh\n(Cookie: refreshToken=<jwt> sent automatically)
+Nginx->API: Rate-limited proxy → /v1/auth/refresh
+API->API: Extract refresh token from cookie
+API->API: Verify JWT signature & expiry
+API->DB: SELECT refreshToken FROM users WHERE id=sub
+DB-->API: Hashed refresh token
+API->API: bcrypt.compare(tokenFromCookie, hashedFromDB)
+note over API: Mismatch or expired → 401 (force re-login)
+
+API->API: Rotate: generate new access token\n+ new refresh token
+API->API: bcrypt.hash(newRefreshToken)
+API->DB: UPDATE users SET refreshToken=newHash
+DB-->API: Updated
+API-->Nginx: 200 { accessToken }\nSet-Cookie: refreshToken=<newJwt>; HttpOnly; ...
+Nginx-->Browser: New tokens
+Web->Web: Retry original request with new accessToken
+
+note over Browser,DB: ── Logout ─────────────────────────────────────────
+
+User->Browser: Click Logout
+Browser->Web: Trigger logout
+Web->Nginx: POST https://api.timekeeping.local/v1/auth/logout\nAuthorization: Bearer <accessToken>
+Nginx->API: Proxy
+API->DB: UPDATE users SET refreshToken=NULL WHERE id=?
+DB-->API: Cleared
+API-->Nginx: 200 + Set-Cookie: refreshToken=; Max-Age=0
+Nginx-->Browser: Cookie cleared
+Web->Web: Clear accessToken from memory, clear React Query cache
+Web-->User: Redirect → Login page

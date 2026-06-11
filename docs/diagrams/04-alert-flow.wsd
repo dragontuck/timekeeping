@@ -1,0 +1,104 @@
+title Alert Management Workflow
+
+actor User
+participant Browser
+participant "Web App\n(React SPA)" as Web
+participant "API\n(Node.js)" as API
+participant "Database\n(PostgreSQL)" as DB
+participant "Scheduler\n(node-cron)" as Cron
+participant "Email Service\n(nodemailer)" as Email
+
+note over User,Email: ── View Alerts ─────────────────────────────────────
+
+User->Browser: Navigate to Alerts
+Web->API: GET /v1/alerts (user's own alerts)
+API->API: Verify JWT → userId
+API->DB: SELECT a.*, p.name AS projectName, c.name AS clientName\nFROM alerts a\nJOIN projects p ON a.projectId=p.id\nJOIN clients c ON p.clientId=c.id\nWHERE a.userId=?
+DB-->API: Alert list
+API-->Web: { data: alerts }
+Web-->User: Alert list:\n- Project | Type | Status (toggle)\n- [Add Alert] button
+
+note over User,Email: ── Create Alert ────────────────────────────────────
+
+User->Browser: Click "+ Add Alert"
+Web->API: GET /v1/projects?active=true
+API->DB: SELECT p.*, c.name AS clientName\nFROM projects p JOIN clients c ON p.clientId=c.id\nWHERE p.isActive=true
+DB-->API: Active projects
+API-->Web: Project list (with client names)
+Web-->User: Form:\n  Project ▼  Type ▼ (Daily / Weekly)
+
+User->Browser: Select "Acme – Website Redesign", Type: Daily\nClick Save
+
+Web->Web: Validate (Zod)
+Web->API: POST /v1/alerts { projectId: "...", type: "DAILY" }
+API->API: Validate (Zod)
+API->API: Verify JWT → userId
+API->DB: INSERT INTO alerts (userId, projectId, type, isEnabled)\nON CONFLICT (userId, projectId, type) DO NOTHING
+note over API: Unique constraint prevents duplicates
+DB-->API: Created alert { id, isEnabled: true }
+API-->Web: 201 { data: alert }
+Web-->User: Alert added: "Acme / Website Redesign – Daily – ✅ Enabled"
+
+note over User,Email: ── Toggle Alert (Enable / Disable) ────────────────
+
+User->Browser: Click toggle to disable alert
+Web->API: PATCH /v1/alerts/:id { isEnabled: false }
+API->API: Verify ownership (alert.userId === authUserId)
+API->DB: UPDATE alerts SET isEnabled=false WHERE id=?
+DB-->API: Updated
+API-->Web: 200 { data: { isEnabled: false } }
+Web-->User: Toggle shows disabled — no more reminders for this project
+
+User->Browser: Click toggle to re-enable
+Web->API: PATCH /v1/alerts/:id { isEnabled: true }
+API->DB: UPDATE alerts SET isEnabled=true WHERE id=?
+DB-->API: Updated
+API-->Web: 200 { data: { isEnabled: true } }
+Web-->User: Toggle shows enabled
+
+note over User,Email: ── Delete Alert ────────────────────────────────────
+
+User->Browser: Click Delete on alert
+Web-->User: Confirm: "Remove this alert?"
+User->Browser: Confirm
+
+Web->API: DELETE /v1/alerts/:id
+API->API: Verify ownership
+API->DB: DELETE FROM alerts WHERE id=? AND userId=?
+DB-->API: Deleted
+API-->Web: 204 No Content
+Web->Web: Remove alert from list
+Web-->User: Alert removed
+
+note over Cron,Email: ── Daily Alert Job (Weekdays 9:00 AM) ─────────────
+
+Cron->Cron: Cron fires: 0 9 * * 1-5
+
+Cron->DB: SELECT DISTINCT a.userId, a.projectId,\n  u.email, u.firstName,\n  p.name AS project, c.name AS client\nFROM alerts a\nJOIN users u ON a.userId=u.id  AND u.isActive=true\nJOIN projects p ON a.projectId=p.id AND p.isActive=true\nJOIN clients c ON p.clientId=c.id\nWHERE a.type='DAILY' AND a.isEnabled=true
+DB-->Cron: All active daily alert subscriptions
+
+Cron->DB: For each user: SELECT projectId FROM time_entries\nWHERE userId=? AND date=CURRENT_DATE
+DB-->Cron: Projects already logged today (per user)
+
+Cron->Cron: Build "missing" set:\nsubscribed_projects − logged_projects
+
+Cron->Cron: Group missing entries by user
+
+alt Missing entries found for user
+  Cron->Email: sendDailyReminderEmail({\n    to: user.email,\n    name: user.firstName,\n    missingProjects: [...]\n  })
+  Email-->User: 📧 "Daily Reminder:\nHi Jane, please log time for:\n  • Acme Corp / Website Redesign\n  • Beta Inc / API Integration"
+else No missing entries
+  Cron->Cron: Skip user (already fully logged)
+end
+
+note over Cron,Email: ── Weekly Alert Job (Fridays 4:00 PM) ─────────────
+
+Cron->Cron: Cron fires: 0 16 * * 5
+
+Cron->DB: SELECT a.userId, a.projectId,\n  u.email, u.firstName,\n  p.name, c.name,\n  COALESCE(SUM(te.hours),0) AS weekHours,\n  COALESCE(SUM(te.hours * p.costPerHour),0) AS weekCost\nFROM alerts a\nJOIN users u ON a.userId=u.id AND u.isActive=true\nJOIN projects p ON a.projectId=p.id\nJOIN clients c ON p.clientId=c.id\nLEFT JOIN time_entries te ON te.userId=a.userId\n  AND te.projectId=a.projectId\n  AND te.date BETWEEN date_trunc('week',now())\n                 AND now()\nWHERE a.type='WEEKLY' AND a.isEnabled=true\nGROUP BY a.userId, a.projectId, u.email, u.firstName,\n  p.name, c.name
+DB-->Cron: Weekly summaries by user/project
+
+Cron->Cron: Group by userId, aggregate totals
+
+Cron->Email: sendWeeklySummaryEmail({\n    to: user.email,\n    name: user.firstName,\n    summaries: [{ project, client, hours, cost }],\n    totalHours, totalCost\n  })
+Email-->User: 📧 "Weekly Summary (Jun 9–13, 2026)\n  Acme / Website Redesign: 12h / $1,800\n  Total: 12h / $1,800"
