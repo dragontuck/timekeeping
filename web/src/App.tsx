@@ -14,6 +14,7 @@ import AlertsPage from './pages/alerts/AlertsPage';
 import InvoicesPage from './pages/invoices/InvoicesPage';
 import InvoiceDetailPage from './pages/invoices/InvoiceDetailPage';
 import AuditLogPage from './pages/audit/AuditLogPage';
+import SettingsPage from './pages/settings/SettingsPage';
 import ErrorBoundary from './components/ui/ErrorBoundary';
 
 export default function App() {
@@ -37,6 +38,7 @@ export default function App() {
                                 <Route path="/invoices" element={<InvoicesPage />} />
                                 <Route path="/invoices/:id" element={<InvoiceDetailPage />} />
                                 <Route path="/audit-log" element={<AuditLogPage />} />
+                                <Route path="/settings" element={<SettingsPage />} />
                             </Route>
                         </Route>
                         <Route path="*" element={<Navigate to="/dashboard" replace />} />

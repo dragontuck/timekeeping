@@ -23,6 +23,7 @@ const safeUserSelect = {
     role: true,
     isActive: true,
     invoicePrefix: true,
+    companyName: true,
     gmailUser: true,
     lastLoginAt: true,
     createdAt: true,

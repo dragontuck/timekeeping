@@ -12,6 +12,8 @@ export interface User {
     role: Role;
     isActive: boolean;
     invoicePrefix: string | null;
+    /** Company name shown on this user's individual invoices. */
+    companyName: string | null;
     /** Gmail address used to send invoices/alerts. Null if not configured. */
     gmailUser: string | null;
     lastLoginAt: string | null;
@@ -87,6 +89,14 @@ export interface InvoiceItem {
     id: string;
     invoiceId: string;
     timeEntryId: string | null;
+    projectId?: string | null;
+    projectName?: string;
+    timeEntry?: {
+        project: {
+            id: string;
+            name: string;
+        };
+    };
     date: string;
     description: string;
     hours: string;
@@ -116,7 +126,7 @@ export interface Invoice {
     createdAt: string;
     updatedAt: string;
     client: Client;
-    user?: Pick<User, 'id' | 'firstName' | 'lastName' | 'email' | 'invoicePrefix'>;
+    user?: Pick<User, 'id' | 'firstName' | 'lastName' | 'email' | 'invoicePrefix' | 'companyName'>;
     items?: InvoiceItem[];
     _count?: { items: number };
 }

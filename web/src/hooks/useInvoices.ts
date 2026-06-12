@@ -38,6 +38,7 @@ export function useCreateInvoice() {
     return useMutation({
         mutationFn: async (input: {
             clientId: string;
+            projectId?: string | null;
             issueDate: string;
             dueDate: string;
             periodStart: string;
@@ -56,6 +57,38 @@ export function useCreateInvoice() {
         },
         onError: (e: { response?: { data?: { message?: string } } }) => {
             toast.error(e.response?.data?.message ?? 'Failed to create invoice');
+        },
+    });
+}
+
+export function useUpdateInvoice() {
+    const qc = useQueryClient();
+    return useMutation({
+        mutationFn: async (input: {
+            id: string;
+            issueDate?: string;
+            dueDate?: string;
+            periodStart?: string;
+            periodEnd?: string;
+            projectId?: string | null;
+            includeUnbilledInPeriod?: boolean;
+            addTimeEntryIds?: string[];
+            removeTimeEntryIds?: string[];
+            taxRate?: number;
+            notes?: string | null;
+        }) => {
+            const { id, ...body } = input;
+            const { data } = await api.patch<ApiResponse<Invoice>>(`/invoices/${id}`, body);
+            return data.data;
+        },
+        onSuccess: (invoice) => {
+            qc.invalidateQueries({ queryKey: ['invoices'] });
+            qc.invalidateQueries({ queryKey: ['time-entries'] });
+            qc.setQueryData(['invoices', invoice.id], invoice);
+            toast.success('Draft invoice updated');
+        },
+        onError: (e: { response?: { data?: { message?: string } } }) => {
+            toast.error(e.response?.data?.message ?? 'Failed to update invoice');
         },
     });
 }

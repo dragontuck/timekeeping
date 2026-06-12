@@ -13,6 +13,7 @@ const profileSchema = z.object({
     firstName: z.string().min(1).max(100),
     lastName: z.string().min(1).max(100),
     email: z.string().email(),
+    companyName: z.string().max(200).optional(),
     invoicePrefix: z.string().max(20).optional(),
 });
 const passwordSchema = z.object({
@@ -42,6 +43,7 @@ export default function ProfilePage() {
                 firstName: user?.firstName ?? '',
                 lastName: user?.lastName ?? '',
                 email: user?.email ?? '',
+                companyName: user?.companyName ?? '',
                 invoicePrefix: user?.invoicePrefix ?? '',
             }
         });
@@ -108,6 +110,13 @@ export default function ProfilePage() {
                         <Input label="Last Name" required error={pe.lastName?.message} {...regProfile('lastName')} />
                     </div>
                     <Input label="Email" type="email" required error={pe.email?.message} {...regProfile('email')} />
+                    <Input
+                        label="Company Name"
+                        placeholder="e.g. Acme Consulting LLC"
+                        hint="Appears as the 'From' name on your invoices. Leave blank to use your full name."
+                        error={pe.companyName?.message}
+                        {...regProfile('companyName')}
+                    />
                     <Input
                         label="Invoice Number Prefix"
                         placeholder="e.g. ACME"

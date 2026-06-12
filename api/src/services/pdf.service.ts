@@ -24,6 +24,7 @@ interface InvoiceForPdf {
         firstName: string;
         lastName: string;
         email: string;
+        companyName?: string | null;
     };
     items: Array<{
         date: Date;
@@ -92,7 +93,7 @@ export async function generatePdf(invoice: InvoiceForPdf): Promise<Buffer> {
             .fillColor(COLORS.text)
             .fontSize(10)
             .font('Helvetica')
-            .text(`${invoice.user.firstName} ${invoice.user.lastName}`, 60, 175)
+            .text(invoice.user.companyName?.trim() || `${invoice.user.firstName} ${invoice.user.lastName}`, 60, 175)
             .text(invoice.user.email, 60);
 
         doc

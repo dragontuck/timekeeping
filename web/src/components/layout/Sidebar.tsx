@@ -19,6 +19,7 @@ const NAV_ITEMS: NavItem[] = [
     { to: '/alerts', label: 'Alerts', icon: '🔔' },
     { to: '/users', label: 'Users', icon: '👥', adminOnly: true },
     { to: '/audit-log', label: 'Audit Log', icon: '🔍', adminOnly: true },
+    { to: '/settings', label: 'Settings', icon: '⚙️', adminOnly: true },
     { to: '/profile', label: 'Profile', icon: '👤' },
 ];
 

@@ -17,6 +17,89 @@ function parseDate(s: string): Date {
     return new Date(Date.UTC(y!, m! - 1, d!));
 }
 
+function toIsoDate(date: Date): string {
+    return date.toISOString().slice(0, 10);
+}
+
+function roundCurrency(value: number): number {
+    return Math.round(value * 100) / 100;
+}
+
+async function fetchInvoiceEntriesByIds(
+    entryIds: string[],
+    clientId: string,
+    currentUser: AuthenticatedUser,
+    projectId?: string,
+) {
+    if (entryIds.length === 0) return [];
+
+    const entries = await prisma.timeEntry.findMany({
+        where: {
+            id: { in: entryIds },
+            userId: currentUser.id,
+        },
+        include: {
+            project: {
+                select: {
+                    id: true,
+                    name: true,
+                    costPerHour: true,
+                    clientId: true,
+                },
+            },
+        },
+    });
+
+    if (entries.length !== entryIds.length) {
+        throw new AppError(400, 'Some time entries were not found or do not belong to you');
+    }
+
+    const wrongClient = entries.filter((e) => e.project.clientId !== clientId);
+    if (wrongClient.length > 0) {
+        throw new AppError(400, 'All time entries must belong to the selected client');
+    }
+
+    if (projectId) {
+        const wrongProject = entries.filter((e) => e.projectId !== projectId);
+        if (wrongProject.length > 0) {
+            throw new AppError(400, 'All selected entries must belong to the specified project');
+        }
+    }
+
+    const billedEntries = entries.filter((e) => e.isBilled);
+    if (billedEntries.length > 0) {
+        throw new AppError(400, `${billedEntries.length} time entry(ies) have already been billed`);
+    }
+
+    return entries;
+}
+
+function toLineItemInput(entry: {
+    id: string;
+    date: Date;
+    hours: unknown;
+    description: string | null;
+    project: { name: string; costPerHour: unknown };
+}) {
+    const hours = Number(entry.hours);
+    const rate = Number(entry.project.costPerHour);
+    return {
+        timeEntryId: entry.id,
+        date: entry.date,
+        description: entry.description ?? `${entry.project.name}`,
+        hours,
+        rate,
+        amount: roundCurrency(hours * rate),
+    };
+}
+
+function calcTotals(lineItems: Array<{ amount: number }>, taxRate: number) {
+    const subtotal = roundCurrency(lineItems.reduce((sum, item) => sum + item.amount, 0));
+    const taxAmount = roundCurrency(subtotal * (taxRate / 100));
+    const total = roundCurrency(subtotal + taxAmount);
+    return { subtotal, taxAmount, total };
+}
+
 /** Generate next invoice number: PREFIX-YYYY-NNNN */
 async function generateInvoiceNumber(userId: string, year: number): Promise<string> {
     const user = await prisma.user.findUnique({ where: { id: userId }, select: { invoicePrefix: true } });
@@ -88,8 +171,17 @@ export async function getInvoiceById(id: string, currentUser: AuthenticatedUser)
         where: { id },
         include: {
             client: true,
-            user: { select: { id: true, firstName: true, lastName: true, email: true, invoicePrefix: true } },
-            items: { orderBy: { date: 'asc' } },
+            user: { select: { id: true, firstName: true, lastName: true, email: true, invoicePrefix: true, companyName: true } },
+            items: {
+                orderBy: { date: 'asc' },
+                include: {
+                    timeEntry: {
+                        select: {
+                            project: { select: { id: true, name: true } },
+                        },
+                    },
+                },
+            },
         },
     });
 
@@ -123,6 +215,13 @@ export async function createInvoice(input: CreateInvoiceInput, currentUser: Auth
     const wrongClient = entries.filter((e) => e.project.clientId !== input.clientId);
     if (wrongClient.length > 0) {
         throw new AppError(400, 'All time entries must belong to the selected client');
+    }
+
+    if (input.projectId) {
+        const wrongProject = entries.filter((e) => e.projectId !== input.projectId);
+        if (wrongProject.length > 0) {
+            throw new AppError(400, 'All time entries must belong to the selected project');
+        }
     }
 
     // Calculate amounts
@@ -165,8 +264,17 @@ export async function createInvoice(input: CreateInvoiceInput, currentUser: Auth
             },
             include: {
                 client: true,
-                user: { select: { id: true, firstName: true, lastName: true, email: true, invoicePrefix: true } },
-                items: { orderBy: { date: 'asc' } },
+                user: { select: { id: true, firstName: true, lastName: true, email: true, invoicePrefix: true, companyName: true } },
+                items: {
+                    orderBy: { date: 'asc' },
+                    include: {
+                        timeEntry: {
+                            select: {
+                                project: { select: { id: true, name: true } },
+                            },
+                        },
+                    },
+                },
             },
         });
 
@@ -188,25 +296,207 @@ export async function updateInvoice(
     const invoice = await getInvoiceById(id, currentUser);
     if (invoice.status !== 'DRAFT') throw new AppError(400, 'Only DRAFT invoices can be edited');
 
-    const data: Record<string, unknown> = {};
-    if (input.issueDate) data['issueDate'] = parseDate(input.issueDate);
-    if (input.dueDate) data['dueDate'] = parseDate(input.dueDate);
-    if (input.taxRate !== undefined) {
-        data['taxRate'] = input.taxRate;
-        const subtotal = Number(invoice.subtotal);
-        data['taxAmount'] = Math.round(subtotal * (input.taxRate / 100) * 100) / 100;
-        data['total'] = subtotal + (data['taxAmount'] as number);
-    }
-    if (input.notes !== undefined) data['notes'] = input.notes;
+    return prisma.$transaction(async (tx) => {
+        const currentLineItems = invoice.items.filter((i) => i.timeEntryId);
+        const currentEntryIds = currentLineItems.map((i) => i.timeEntryId!);
 
-    return prisma.invoice.update({
-        where: { id },
-        data,
-        include: {
-            client: true,
-            user: { select: { id: true, firstName: true, lastName: true, email: true, invoicePrefix: true } },
-            items: { orderBy: { date: 'asc' } },
-        },
+        const nextTaxRate = input.taxRate !== undefined ? input.taxRate : Number(invoice.taxRate);
+        const nextPeriodStart = input.periodStart ?? toIsoDate(invoice.periodStart);
+        const nextPeriodEnd = input.periodEnd ?? toIsoDate(invoice.periodEnd);
+        const nextProjectId = input.projectId === undefined ? undefined : input.projectId ?? null;
+
+        const requestedAddIds = new Set<string>(input.addTimeEntryIds ?? []);
+        const requestedRemoveIds = new Set<string>(input.removeTimeEntryIds ?? []);
+
+        for (const removeId of requestedRemoveIds) {
+            requestedAddIds.delete(removeId);
+        }
+
+        let replacementEntryIds: string[] | null = null;
+        if (input.includeUnbilledInPeriod) {
+            const matchingCurrentEntryIds = currentLineItems
+                .filter((item) => {
+                    const dateKey = toIsoDate(item.date);
+                    if (dateKey < nextPeriodStart || dateKey > nextPeriodEnd) return false;
+                    if (!nextProjectId) return true;
+
+                    const matchingCurrent = invoice.items.find((invoiceItem) => invoiceItem.id === item.id);
+                    const existingProjectId = matchingCurrent?.timeEntry?.project.id;
+                    return existingProjectId === nextProjectId;
+                })
+                .map((item) => item.timeEntryId!);
+
+            const periodEntries = await tx.timeEntry.findMany({
+                where: {
+                    userId: currentUser.id,
+                    isBilled: false,
+                    date: { gte: parseDate(nextPeriodStart), lte: parseDate(nextPeriodEnd) },
+                    project: {
+                        clientId: invoice.clientId,
+                        ...(nextProjectId ? { id: nextProjectId } : {}),
+                    },
+                },
+                select: { id: true },
+            });
+
+            replacementEntryIds = Array.from(new Set([
+                ...matchingCurrentEntryIds,
+                ...periodEntries.map((e) => e.id),
+            ]));
+        }
+
+        let nextEntryIds = replacementEntryIds ?? [...currentEntryIds];
+
+        if (requestedRemoveIds.size > 0) {
+            nextEntryIds = nextEntryIds.filter((entryId) => !requestedRemoveIds.has(entryId));
+        }
+
+        if (requestedAddIds.size > 0) {
+            const existing = new Set(nextEntryIds);
+            for (const addId of requestedAddIds) {
+                if (!existing.has(addId)) nextEntryIds.push(addId);
+            }
+        }
+
+        const removedEntryIds = currentEntryIds.filter((entryId) => !nextEntryIds.includes(entryId));
+        const addedEntryIds = nextEntryIds.filter((entryId) => !currentEntryIds.includes(entryId));
+
+        const addedEntries = await fetchInvoiceEntriesByIds(
+            addedEntryIds,
+            invoice.clientId,
+            currentUser,
+            nextProjectId ?? undefined,
+        );
+
+        if (nextEntryIds.length === 0) {
+            throw new AppError(400, 'Draft invoice must contain at least one time entry');
+        }
+
+        if (addedEntryIds.length > 0) {
+            const outsidePeriod = addedEntries.filter((e) => {
+                const dateKey = toIsoDate(e.date);
+                return dateKey < nextPeriodStart || dateKey > nextPeriodEnd;
+            });
+            if (outsidePeriod.length > 0) {
+                throw new AppError(400, 'Added time entries must be within the invoice period');
+            }
+        }
+
+        const entryMap = new Map<string, (typeof addedEntries)[number]>();
+        for (const entry of addedEntries) {
+            entryMap.set(entry.id, entry);
+        }
+
+        const persistedEntries = await tx.timeEntry.findMany({
+            where: {
+                id: { in: currentEntryIds.filter((entryId) => nextEntryIds.includes(entryId)) },
+                userId: currentUser.id,
+                project: { clientId: invoice.clientId },
+            },
+            include: {
+                project: {
+                    select: {
+                        id: true,
+                        name: true,
+                        costPerHour: true,
+                        clientId: true,
+                    },
+                },
+            },
+        });
+
+        for (const entry of persistedEntries) {
+            entryMap.set(entry.id, entry);
+        }
+
+        const nextEntries = nextEntryIds.map((entryId) => {
+            const entry = entryMap.get(entryId);
+            if (!entry) {
+                throw new AppError(400, 'Unable to resolve one or more selected time entries');
+            }
+            return entry;
+        });
+
+        const invalidForClientOrProject = nextEntries.filter((entry) => {
+            if (entry.project.clientId !== invoice.clientId) return true;
+            if (nextProjectId && entry.projectId !== nextProjectId) return true;
+            return false;
+        });
+        if (invalidForClientOrProject.length > 0) {
+            throw new AppError(400, 'Selected time entries must match the invoice client and project filter');
+        }
+
+        const outsidePeriod = nextEntries.filter((entry) => {
+            const dateKey = toIsoDate(entry.date);
+            return dateKey < nextPeriodStart || dateKey > nextPeriodEnd;
+        });
+        if (outsidePeriod.length > 0) {
+            throw new AppError(400, 'Selected time entries must be within the invoice period');
+        }
+
+        const lineItems = nextEntries.map(toLineItemInput);
+        const totals = calcTotals(lineItems, nextTaxRate);
+
+        if (removedEntryIds.length > 0) {
+            await tx.timeEntry.updateMany({
+                where: { id: { in: removedEntryIds } },
+                data: { isBilled: false },
+            });
+        }
+
+        if (addedEntryIds.length > 0) {
+            await tx.timeEntry.updateMany({
+                where: { id: { in: addedEntryIds } },
+                data: { isBilled: true },
+            });
+        }
+
+        await tx.invoiceItem.deleteMany({ where: { invoiceId: invoice.id } });
+        await tx.invoiceItem.createMany({
+            data: lineItems.map((item) => ({
+                invoiceId: invoice.id,
+                timeEntryId: item.timeEntryId,
+                date: item.date,
+                description: item.description,
+                hours: item.hours,
+                rate: item.rate,
+                amount: item.amount,
+            })),
+        });
+
+        const data: Record<string, unknown> = {
+            periodStart: parseDate(nextPeriodStart),
+            periodEnd: parseDate(nextPeriodEnd),
+            taxRate: nextTaxRate,
+            subtotal: totals.subtotal,
+            taxAmount: totals.taxAmount,
+            total: totals.total,
+        };
+
+        if (input.issueDate) data['issueDate'] = parseDate(input.issueDate);
+        if (input.dueDate) data['dueDate'] = parseDate(input.dueDate);
+        if (input.notes !== undefined) data['notes'] = input.notes;
+
+        const updated = await tx.invoice.update({
+            where: { id },
+            data,
+            include: {
+                client: true,
+                user: { select: { id: true, firstName: true, lastName: true, email: true, invoicePrefix: true, companyName: true } },
+                items: {
+                    orderBy: { date: 'asc' },
+                    include: {
+                        timeEntry: {
+                            select: {
+                                project: { select: { id: true, name: true } },
+                            },
+                        },
+                    },
+                },
+            },
+        });
+
+        return updated;
     });
 }
 
@@ -237,8 +527,17 @@ export async function updateInvoiceStatus(
         data: { status: input.status, ...timestamps },
         include: {
             client: true,
-            user: { select: { id: true, firstName: true, lastName: true, email: true, invoicePrefix: true } },
-            items: { orderBy: { date: 'asc' } },
+            user: { select: { id: true, firstName: true, lastName: true, email: true, invoicePrefix: true, companyName: true } },
+            items: {
+                orderBy: { date: 'asc' },
+                include: {
+                    timeEntry: {
+                        select: {
+                            project: { select: { id: true, name: true } },
+                        },
+                    },
+                },
+            },
         },
     });
 }

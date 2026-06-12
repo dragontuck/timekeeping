@@ -8,6 +8,7 @@ import reportsRoutes from './reports.routes';
 import alertsRoutes from './alerts.routes';
 import invoicesRoutes from './invoices.routes';
 import auditRoutes from './audit.routes';
+import settingsRoutes from './settings.routes';
 
 const router = Router();
 
@@ -20,5 +21,6 @@ router.use('/reports', reportsRoutes);
 router.use('/alerts', alertsRoutes);
 router.use('/invoices', invoicesRoutes);
 router.use('/audit-logs', auditRoutes);
+router.use('/settings', settingsRoutes);
 
 export default router;

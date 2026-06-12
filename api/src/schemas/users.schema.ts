@@ -28,6 +28,7 @@ export const updateUserSchema = z.object({
     role: z.enum(['ADMIN', 'STANDARD']).optional(),
     isActive: z.boolean().optional(),
     invoicePrefix: z.string().max(20).optional(),
+    companyName: z.string().max(200).optional().nullable(),
     gmailUser: z.string().email('Must be a valid Gmail address').optional().or(z.literal('')),
     // Write-only – stored encrypted. Send empty string to clear.
     gmailAppPassword: z.string().optional(),

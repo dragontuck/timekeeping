@@ -58,7 +58,8 @@ export const ModelName = {
   Alert: 'Alert',
   Invoice: 'Invoice',
   InvoiceItem: 'InvoiceItem',
-  AuditLog: 'AuditLog'
+  AuditLog: 'AuditLog',
+  AppSettings: 'AppSettings'
 } as const
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -86,6 +87,7 @@ export const UserScalarFieldEnum = {
   role: 'role',
   isActive: 'isActive',
   invoicePrefix: 'invoicePrefix',
+  companyName: 'companyName',
   gmailUser: 'gmailUser',
   gmailAppPasswordEnc: 'gmailAppPasswordEnc',
   refreshToken: 'refreshToken',
@@ -214,6 +216,15 @@ export const AuditLogScalarFieldEnum = {
 } as const
 
 export type AuditLogScalarFieldEnum = (typeof AuditLogScalarFieldEnum)[keyof typeof AuditLogScalarFieldEnum]
+
+
+export const AppSettingsScalarFieldEnum = {
+  id: 'id',
+  sharedCompanyName: 'sharedCompanyName',
+  updatedAt: 'updatedAt'
+} as const
+
+export type AppSettingsScalarFieldEnum = (typeof AppSettingsScalarFieldEnum)[keyof typeof AppSettingsScalarFieldEnum]
 
 
 export const SortOrder = {

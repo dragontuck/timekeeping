@@ -4,6 +4,7 @@ const isoDateString = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Date must be YYYY
 
 export const createInvoiceSchema = z.object({
     clientId: z.string().uuid(),
+    projectId: z.string().uuid().optional().nullable(),
     issueDate: isoDateString,
     dueDate: isoDateString,
     periodStart: isoDateString,
@@ -16,6 +17,12 @@ export const createInvoiceSchema = z.object({
 export const updateInvoiceSchema = z.object({
     issueDate: isoDateString.optional(),
     dueDate: isoDateString.optional(),
+    periodStart: isoDateString.optional(),
+    periodEnd: isoDateString.optional(),
+    projectId: z.string().uuid().optional().nullable(),
+    includeUnbilledInPeriod: z.boolean().optional(),
+    addTimeEntryIds: z.array(z.string().uuid()).optional(),
+    removeTimeEntryIds: z.array(z.string().uuid()).optional(),
     taxRate: z.coerce.number().min(0).max(100).optional(),
     notes: z.string().max(2000).optional().nullable(),
 });

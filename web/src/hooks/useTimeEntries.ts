@@ -14,13 +14,14 @@ export interface TimeEntryFilters {
     isBilled?: boolean;
 }
 
-export function useTimeEntries(filters: TimeEntryFilters = {}) {
+export function useTimeEntries(filters: TimeEntryFilters = {}, enabled = true) {
     return useQuery({
         queryKey: ['time-entries', filters],
         queryFn: async () => {
             const { data } = await api.get<PaginatedResponse<TimeEntry>>('/time-entries', { params: filters });
             return data;
         },
+        enabled,
     });
 }
 

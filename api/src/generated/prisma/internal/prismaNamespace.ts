@@ -391,7 +391,8 @@ export const ModelName = {
   Alert: 'Alert',
   Invoice: 'Invoice',
   InvoiceItem: 'InvoiceItem',
-  AuditLog: 'AuditLog'
+  AuditLog: 'AuditLog',
+  AppSettings: 'AppSettings'
 } as const
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -407,7 +408,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "user" | "client" | "project" | "timeEntry" | "alert" | "invoice" | "invoiceItem" | "auditLog"
+    modelProps: "user" | "client" | "project" | "timeEntry" | "alert" | "invoice" | "invoiceItem" | "auditLog" | "appSettings"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -1003,6 +1004,80 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         }
       }
     }
+    AppSettings: {
+      payload: Prisma.$AppSettingsPayload<ExtArgs>
+      fields: Prisma.AppSettingsFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.AppSettingsFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AppSettingsPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.AppSettingsFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AppSettingsPayload>
+        }
+        findFirst: {
+          args: Prisma.AppSettingsFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AppSettingsPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.AppSettingsFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AppSettingsPayload>
+        }
+        findMany: {
+          args: Prisma.AppSettingsFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AppSettingsPayload>[]
+        }
+        create: {
+          args: Prisma.AppSettingsCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AppSettingsPayload>
+        }
+        createMany: {
+          args: Prisma.AppSettingsCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.AppSettingsCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AppSettingsPayload>[]
+        }
+        delete: {
+          args: Prisma.AppSettingsDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AppSettingsPayload>
+        }
+        update: {
+          args: Prisma.AppSettingsUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AppSettingsPayload>
+        }
+        deleteMany: {
+          args: Prisma.AppSettingsDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.AppSettingsUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.AppSettingsUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AppSettingsPayload>[]
+        }
+        upsert: {
+          args: Prisma.AppSettingsUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AppSettingsPayload>
+        }
+        aggregate: {
+          args: Prisma.AppSettingsAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateAppSettings>
+        }
+        groupBy: {
+          args: Prisma.AppSettingsGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AppSettingsGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.AppSettingsCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AppSettingsCountAggregateOutputType> | number
+        }
+      }
+    }
   }
 } & {
   other: {
@@ -1051,6 +1126,7 @@ export const UserScalarFieldEnum = {
   role: 'role',
   isActive: 'isActive',
   invoicePrefix: 'invoicePrefix',
+  companyName: 'companyName',
   gmailUser: 'gmailUser',
   gmailAppPasswordEnc: 'gmailAppPasswordEnc',
   refreshToken: 'refreshToken',
@@ -1179,6 +1255,15 @@ export const AuditLogScalarFieldEnum = {
 } as const
 
 export type AuditLogScalarFieldEnum = (typeof AuditLogScalarFieldEnum)[keyof typeof AuditLogScalarFieldEnum]
+
+
+export const AppSettingsScalarFieldEnum = {
+  id: 'id',
+  sharedCompanyName: 'sharedCompanyName',
+  updatedAt: 'updatedAt'
+} as const
+
+export type AppSettingsScalarFieldEnum = (typeof AppSettingsScalarFieldEnum)[keyof typeof AppSettingsScalarFieldEnum]
 
 
 export const SortOrder = {
@@ -1492,6 +1577,7 @@ export type GlobalOmitConfig = {
   invoice?: Prisma.InvoiceOmit
   invoiceItem?: Prisma.InvoiceItemOmit
   auditLog?: Prisma.AuditLogOmit
+  appSettings?: Prisma.AppSettingsOmit
 }
 
 /* Types for Logging */

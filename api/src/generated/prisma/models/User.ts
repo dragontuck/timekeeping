@@ -33,6 +33,7 @@ export type UserMinAggregateOutputType = {
   role: $Enums.Role | null
   isActive: boolean | null
   invoicePrefix: string | null
+  companyName: string | null
   gmailUser: string | null
   gmailAppPasswordEnc: string | null
   refreshToken: string | null
@@ -50,6 +51,7 @@ export type UserMaxAggregateOutputType = {
   role: $Enums.Role | null
   isActive: boolean | null
   invoicePrefix: string | null
+  companyName: string | null
   gmailUser: string | null
   gmailAppPasswordEnc: string | null
   refreshToken: string | null
@@ -67,6 +69,7 @@ export type UserCountAggregateOutputType = {
   role: number
   isActive: number
   invoicePrefix: number
+  companyName: number
   gmailUser: number
   gmailAppPasswordEnc: number
   refreshToken: number
@@ -86,6 +89,7 @@ export type UserMinAggregateInputType = {
   role?: true
   isActive?: true
   invoicePrefix?: true
+  companyName?: true
   gmailUser?: true
   gmailAppPasswordEnc?: true
   refreshToken?: true
@@ -103,6 +107,7 @@ export type UserMaxAggregateInputType = {
   role?: true
   isActive?: true
   invoicePrefix?: true
+  companyName?: true
   gmailUser?: true
   gmailAppPasswordEnc?: true
   refreshToken?: true
@@ -120,6 +125,7 @@ export type UserCountAggregateInputType = {
   role?: true
   isActive?: true
   invoicePrefix?: true
+  companyName?: true
   gmailUser?: true
   gmailAppPasswordEnc?: true
   refreshToken?: true
@@ -210,6 +216,7 @@ export type UserGroupByOutputType = {
   role: $Enums.Role
   isActive: boolean
   invoicePrefix: string | null
+  companyName: string | null
   gmailUser: string | null
   gmailAppPasswordEnc: string | null
   refreshToken: string | null
@@ -248,6 +255,7 @@ export type UserWhereInput = {
   role?: Prisma.EnumRoleFilter<"User"> | $Enums.Role
   isActive?: Prisma.BoolFilter<"User"> | boolean
   invoicePrefix?: Prisma.StringNullableFilter<"User"> | string | null
+  companyName?: Prisma.StringNullableFilter<"User"> | string | null
   gmailUser?: Prisma.StringNullableFilter<"User"> | string | null
   gmailAppPasswordEnc?: Prisma.StringNullableFilter<"User"> | string | null
   refreshToken?: Prisma.StringNullableFilter<"User"> | string | null
@@ -270,6 +278,7 @@ export type UserOrderByWithRelationInput = {
   role?: Prisma.SortOrder
   isActive?: Prisma.SortOrder
   invoicePrefix?: Prisma.SortOrderInput | Prisma.SortOrder
+  companyName?: Prisma.SortOrderInput | Prisma.SortOrder
   gmailUser?: Prisma.SortOrderInput | Prisma.SortOrder
   gmailAppPasswordEnc?: Prisma.SortOrderInput | Prisma.SortOrder
   refreshToken?: Prisma.SortOrderInput | Prisma.SortOrder
@@ -295,6 +304,7 @@ export type UserWhereUniqueInput = Prisma.AtLeast<{
   role?: Prisma.EnumRoleFilter<"User"> | $Enums.Role
   isActive?: Prisma.BoolFilter<"User"> | boolean
   invoicePrefix?: Prisma.StringNullableFilter<"User"> | string | null
+  companyName?: Prisma.StringNullableFilter<"User"> | string | null
   gmailUser?: Prisma.StringNullableFilter<"User"> | string | null
   gmailAppPasswordEnc?: Prisma.StringNullableFilter<"User"> | string | null
   refreshToken?: Prisma.StringNullableFilter<"User"> | string | null
@@ -317,6 +327,7 @@ export type UserOrderByWithAggregationInput = {
   role?: Prisma.SortOrder
   isActive?: Prisma.SortOrder
   invoicePrefix?: Prisma.SortOrderInput | Prisma.SortOrder
+  companyName?: Prisma.SortOrderInput | Prisma.SortOrder
   gmailUser?: Prisma.SortOrderInput | Prisma.SortOrder
   gmailAppPasswordEnc?: Prisma.SortOrderInput | Prisma.SortOrder
   refreshToken?: Prisma.SortOrderInput | Prisma.SortOrder
@@ -340,6 +351,7 @@ export type UserScalarWhereWithAggregatesInput = {
   role?: Prisma.EnumRoleWithAggregatesFilter<"User"> | $Enums.Role
   isActive?: Prisma.BoolWithAggregatesFilter<"User"> | boolean
   invoicePrefix?: Prisma.StringNullableWithAggregatesFilter<"User"> | string | null
+  companyName?: Prisma.StringNullableWithAggregatesFilter<"User"> | string | null
   gmailUser?: Prisma.StringNullableWithAggregatesFilter<"User"> | string | null
   gmailAppPasswordEnc?: Prisma.StringNullableWithAggregatesFilter<"User"> | string | null
   refreshToken?: Prisma.StringNullableWithAggregatesFilter<"User"> | string | null
@@ -357,6 +369,7 @@ export type UserCreateInput = {
   role?: $Enums.Role
   isActive?: boolean
   invoicePrefix?: string | null
+  companyName?: string | null
   gmailUser?: string | null
   gmailAppPasswordEnc?: string | null
   refreshToken?: string | null
@@ -379,6 +392,7 @@ export type UserUncheckedCreateInput = {
   role?: $Enums.Role
   isActive?: boolean
   invoicePrefix?: string | null
+  companyName?: string | null
   gmailUser?: string | null
   gmailAppPasswordEnc?: string | null
   refreshToken?: string | null
@@ -401,6 +415,7 @@ export type UserUpdateInput = {
   role?: Prisma.EnumRoleFieldUpdateOperationsInput | $Enums.Role
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
   invoicePrefix?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  companyName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   gmailUser?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   gmailAppPasswordEnc?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   refreshToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -423,6 +438,7 @@ export type UserUncheckedUpdateInput = {
   role?: Prisma.EnumRoleFieldUpdateOperationsInput | $Enums.Role
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
   invoicePrefix?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  companyName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   gmailUser?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   gmailAppPasswordEnc?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   refreshToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -445,6 +461,7 @@ export type UserCreateManyInput = {
   role?: $Enums.Role
   isActive?: boolean
   invoicePrefix?: string | null
+  companyName?: string | null
   gmailUser?: string | null
   gmailAppPasswordEnc?: string | null
   refreshToken?: string | null
@@ -462,6 +479,7 @@ export type UserUpdateManyMutationInput = {
   role?: Prisma.EnumRoleFieldUpdateOperationsInput | $Enums.Role
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
   invoicePrefix?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  companyName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   gmailUser?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   gmailAppPasswordEnc?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   refreshToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -479,6 +497,7 @@ export type UserUncheckedUpdateManyInput = {
   role?: Prisma.EnumRoleFieldUpdateOperationsInput | $Enums.Role
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
   invoicePrefix?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  companyName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   gmailUser?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   gmailAppPasswordEnc?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   refreshToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -496,6 +515,7 @@ export type UserCountOrderByAggregateInput = {
   role?: Prisma.SortOrder
   isActive?: Prisma.SortOrder
   invoicePrefix?: Prisma.SortOrder
+  companyName?: Prisma.SortOrder
   gmailUser?: Prisma.SortOrder
   gmailAppPasswordEnc?: Prisma.SortOrder
   refreshToken?: Prisma.SortOrder
@@ -513,6 +533,7 @@ export type UserMaxOrderByAggregateInput = {
   role?: Prisma.SortOrder
   isActive?: Prisma.SortOrder
   invoicePrefix?: Prisma.SortOrder
+  companyName?: Prisma.SortOrder
   gmailUser?: Prisma.SortOrder
   gmailAppPasswordEnc?: Prisma.SortOrder
   refreshToken?: Prisma.SortOrder
@@ -530,6 +551,7 @@ export type UserMinOrderByAggregateInput = {
   role?: Prisma.SortOrder
   isActive?: Prisma.SortOrder
   invoicePrefix?: Prisma.SortOrder
+  companyName?: Prisma.SortOrder
   gmailUser?: Prisma.SortOrder
   gmailAppPasswordEnc?: Prisma.SortOrder
   refreshToken?: Prisma.SortOrder
@@ -653,6 +675,7 @@ export type UserCreateWithoutOwnedClientsInput = {
   role?: $Enums.Role
   isActive?: boolean
   invoicePrefix?: string | null
+  companyName?: string | null
   gmailUser?: string | null
   gmailAppPasswordEnc?: string | null
   refreshToken?: string | null
@@ -674,6 +697,7 @@ export type UserUncheckedCreateWithoutOwnedClientsInput = {
   role?: $Enums.Role
   isActive?: boolean
   invoicePrefix?: string | null
+  companyName?: string | null
   gmailUser?: string | null
   gmailAppPasswordEnc?: string | null
   refreshToken?: string | null
@@ -711,6 +735,7 @@ export type UserUpdateWithoutOwnedClientsInput = {
   role?: Prisma.EnumRoleFieldUpdateOperationsInput | $Enums.Role
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
   invoicePrefix?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  companyName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   gmailUser?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   gmailAppPasswordEnc?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   refreshToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -732,6 +757,7 @@ export type UserUncheckedUpdateWithoutOwnedClientsInput = {
   role?: Prisma.EnumRoleFieldUpdateOperationsInput | $Enums.Role
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
   invoicePrefix?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  companyName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   gmailUser?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   gmailAppPasswordEnc?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   refreshToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -753,6 +779,7 @@ export type UserCreateWithoutTimeEntriesInput = {
   role?: $Enums.Role
   isActive?: boolean
   invoicePrefix?: string | null
+  companyName?: string | null
   gmailUser?: string | null
   gmailAppPasswordEnc?: string | null
   refreshToken?: string | null
@@ -774,6 +801,7 @@ export type UserUncheckedCreateWithoutTimeEntriesInput = {
   role?: $Enums.Role
   isActive?: boolean
   invoicePrefix?: string | null
+  companyName?: string | null
   gmailUser?: string | null
   gmailAppPasswordEnc?: string | null
   refreshToken?: string | null
@@ -811,6 +839,7 @@ export type UserUpdateWithoutTimeEntriesInput = {
   role?: Prisma.EnumRoleFieldUpdateOperationsInput | $Enums.Role
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
   invoicePrefix?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  companyName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   gmailUser?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   gmailAppPasswordEnc?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   refreshToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -832,6 +861,7 @@ export type UserUncheckedUpdateWithoutTimeEntriesInput = {
   role?: Prisma.EnumRoleFieldUpdateOperationsInput | $Enums.Role
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
   invoicePrefix?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  companyName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   gmailUser?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   gmailAppPasswordEnc?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   refreshToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -853,6 +883,7 @@ export type UserCreateWithoutAlertsInput = {
   role?: $Enums.Role
   isActive?: boolean
   invoicePrefix?: string | null
+  companyName?: string | null
   gmailUser?: string | null
   gmailAppPasswordEnc?: string | null
   refreshToken?: string | null
@@ -874,6 +905,7 @@ export type UserUncheckedCreateWithoutAlertsInput = {
   role?: $Enums.Role
   isActive?: boolean
   invoicePrefix?: string | null
+  companyName?: string | null
   gmailUser?: string | null
   gmailAppPasswordEnc?: string | null
   refreshToken?: string | null
@@ -911,6 +943,7 @@ export type UserUpdateWithoutAlertsInput = {
   role?: Prisma.EnumRoleFieldUpdateOperationsInput | $Enums.Role
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
   invoicePrefix?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  companyName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   gmailUser?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   gmailAppPasswordEnc?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   refreshToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -932,6 +965,7 @@ export type UserUncheckedUpdateWithoutAlertsInput = {
   role?: Prisma.EnumRoleFieldUpdateOperationsInput | $Enums.Role
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
   invoicePrefix?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  companyName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   gmailUser?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   gmailAppPasswordEnc?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   refreshToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -953,6 +987,7 @@ export type UserCreateWithoutInvoicesInput = {
   role?: $Enums.Role
   isActive?: boolean
   invoicePrefix?: string | null
+  companyName?: string | null
   gmailUser?: string | null
   gmailAppPasswordEnc?: string | null
   refreshToken?: string | null
@@ -974,6 +1009,7 @@ export type UserUncheckedCreateWithoutInvoicesInput = {
   role?: $Enums.Role
   isActive?: boolean
   invoicePrefix?: string | null
+  companyName?: string | null
   gmailUser?: string | null
   gmailAppPasswordEnc?: string | null
   refreshToken?: string | null
@@ -1011,6 +1047,7 @@ export type UserUpdateWithoutInvoicesInput = {
   role?: Prisma.EnumRoleFieldUpdateOperationsInput | $Enums.Role
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
   invoicePrefix?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  companyName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   gmailUser?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   gmailAppPasswordEnc?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   refreshToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -1032,6 +1069,7 @@ export type UserUncheckedUpdateWithoutInvoicesInput = {
   role?: Prisma.EnumRoleFieldUpdateOperationsInput | $Enums.Role
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
   invoicePrefix?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  companyName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   gmailUser?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   gmailAppPasswordEnc?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   refreshToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -1053,6 +1091,7 @@ export type UserCreateWithoutAuditLogsInput = {
   role?: $Enums.Role
   isActive?: boolean
   invoicePrefix?: string | null
+  companyName?: string | null
   gmailUser?: string | null
   gmailAppPasswordEnc?: string | null
   refreshToken?: string | null
@@ -1074,6 +1113,7 @@ export type UserUncheckedCreateWithoutAuditLogsInput = {
   role?: $Enums.Role
   isActive?: boolean
   invoicePrefix?: string | null
+  companyName?: string | null
   gmailUser?: string | null
   gmailAppPasswordEnc?: string | null
   refreshToken?: string | null
@@ -1111,6 +1151,7 @@ export type UserUpdateWithoutAuditLogsInput = {
   role?: Prisma.EnumRoleFieldUpdateOperationsInput | $Enums.Role
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
   invoicePrefix?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  companyName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   gmailUser?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   gmailAppPasswordEnc?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   refreshToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -1132,6 +1173,7 @@ export type UserUncheckedUpdateWithoutAuditLogsInput = {
   role?: Prisma.EnumRoleFieldUpdateOperationsInput | $Enums.Role
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
   invoicePrefix?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  companyName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   gmailUser?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   gmailAppPasswordEnc?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   refreshToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -1220,6 +1262,7 @@ export type UserSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = r
   role?: boolean
   isActive?: boolean
   invoicePrefix?: boolean
+  companyName?: boolean
   gmailUser?: boolean
   gmailAppPasswordEnc?: boolean
   refreshToken?: boolean
@@ -1243,6 +1286,7 @@ export type UserSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Extensio
   role?: boolean
   isActive?: boolean
   invoicePrefix?: boolean
+  companyName?: boolean
   gmailUser?: boolean
   gmailAppPasswordEnc?: boolean
   refreshToken?: boolean
@@ -1260,6 +1304,7 @@ export type UserSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensio
   role?: boolean
   isActive?: boolean
   invoicePrefix?: boolean
+  companyName?: boolean
   gmailUser?: boolean
   gmailAppPasswordEnc?: boolean
   refreshToken?: boolean
@@ -1277,6 +1322,7 @@ export type UserSelectScalar = {
   role?: boolean
   isActive?: boolean
   invoicePrefix?: boolean
+  companyName?: boolean
   gmailUser?: boolean
   gmailAppPasswordEnc?: boolean
   refreshToken?: boolean
@@ -1285,7 +1331,7 @@ export type UserSelectScalar = {
   updatedAt?: boolean
 }
 
-export type UserOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "email" | "passwordHash" | "firstName" | "lastName" | "role" | "isActive" | "invoicePrefix" | "gmailUser" | "gmailAppPasswordEnc" | "refreshToken" | "lastLoginAt" | "createdAt" | "updatedAt", ExtArgs["result"]["user"]>
+export type UserOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "email" | "passwordHash" | "firstName" | "lastName" | "role" | "isActive" | "invoicePrefix" | "companyName" | "gmailUser" | "gmailAppPasswordEnc" | "refreshToken" | "lastLoginAt" | "createdAt" | "updatedAt", ExtArgs["result"]["user"]>
 export type UserInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   timeEntries?: boolean | Prisma.User$timeEntriesArgs<ExtArgs>
   alerts?: boolean | Prisma.User$alertsArgs<ExtArgs>
@@ -1315,6 +1361,7 @@ export type $UserPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs =
     role: $Enums.Role
     isActive: boolean
     invoicePrefix: string | null
+    companyName: string | null
     gmailUser: string | null
     gmailAppPasswordEnc: string | null
     refreshToken: string | null
@@ -1757,6 +1804,7 @@ export interface UserFieldRefs {
   readonly role: Prisma.FieldRef<"User", 'Role'>
   readonly isActive: Prisma.FieldRef<"User", 'Boolean'>
   readonly invoicePrefix: Prisma.FieldRef<"User", 'String'>
+  readonly companyName: Prisma.FieldRef<"User", 'String'>
   readonly gmailUser: Prisma.FieldRef<"User", 'String'>
   readonly gmailAppPasswordEnc: Prisma.FieldRef<"User", 'String'>
   readonly refreshToken: Prisma.FieldRef<"User", 'String'>

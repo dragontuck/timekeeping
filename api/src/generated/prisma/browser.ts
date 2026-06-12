@@ -57,3 +57,8 @@ export type InvoiceItem = Prisma.InvoiceItemModel
  * 
  */
 export type AuditLog = Prisma.AuditLogModel
+/**
+ * Model AppSettings
+ * 
+ */
+export type AppSettings = Prisma.AppSettingsModel

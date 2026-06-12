@@ -54,6 +54,8 @@ model User {
   isActive       Boolean   @default(true)
   // Prefix used in generated invoice numbers (e.g. "ACME" → ACME-2026-0001)
   invoicePrefix       String?   @default("")
+  // Company name shown on individual invoices (overrides shared setting)
+  companyName         String?
   // Gmail credentials for per-user invoice/alert sending
   gmailUser           String?
   // AES-256-GCM encrypted Gmail App Password (never returned via API)
@@ -245,4 +247,15 @@ model AuditLog {
   @@index([changedById])
   @@index([createdAt])
   @@map("audit_logs")
+}
+
+// ─── App Settings (singleton) ─────────────────────────────────────────────────
+
+model AppSettings {
+  id                String   @id @default("singleton")
+  /// Company name used on shared / combined invoices (admin-managed)
+  sharedCompanyName String?
+  updatedAt         DateTime @updatedAt
+
+  @@map("app_settings")
 }

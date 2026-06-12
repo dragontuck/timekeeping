@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useInvoices, useCreateInvoice, useDeleteInvoice } from '../../hooks/useInvoices';
 import { useClients } from '../../hooks/useClients';
+import { useProjects } from '../../hooks/useProjects';
 import { useTimeEntries } from '../../hooks/useTimeEntries';
 import Table from '../../components/ui/Table';
 import Button from '../../components/ui/Button';
@@ -17,6 +18,7 @@ import { z } from 'zod';
 
 const schema = z.object({
     clientId: z.string().min(1, 'Client is required'),
+    projectId: z.string().optional(),
     periodStart: z.string().min(1, 'Required'),
     periodEnd: z.string().min(1, 'Required'),
     dueDate: z.string().min(1, 'Required'),
@@ -52,13 +54,26 @@ export default function InvoicesPage() {
     });
 
     const selectedClientId = watch('clientId');
+    const selectedProjectId = watch('projectId');
     const startDate = watch('periodStart');
     const endDate = watch('periodEnd');
 
+    const { data: projectsData } = useProjects(
+        selectedClientId ? { clientId: selectedClientId, isActive: true, limit: 100 } : {},
+    );
+
     const { data: entriesPreview } = useTimeEntries(
         selectedClientId && startDate && endDate
-            ? { clientId: selectedClientId, startDate, endDate, isBilled: false, limit: 100 }
+            ? {
+                clientId: selectedClientId,
+                projectId: selectedProjectId || undefined,
+                startDate,
+                endDate,
+                isBilled: false,
+                limit: 100,
+            }
             : {},
+        Boolean(selectedClientId && startDate && endDate),
     );
 
     const totalPreview = (entriesPreview?.data ?? []).reduce(
@@ -70,6 +85,7 @@ export default function InvoicesPage() {
         if (timeEntryIds.length === 0) { return; }
         await createMutation.mutateAsync({
             ...data,
+            projectId: data.projectId || null,
             issueDate: new Date().toISOString().slice(0, 10),
             timeEntryIds,
         });
@@ -80,6 +96,11 @@ export default function InvoicesPage() {
     const clientOptions = [
         { value: '', label: 'Select a client...' },
         ...(clientsData?.data ?? []).map((c) => ({ value: c.id, label: c.name })),
+    ];
+
+    const projectOptions = [
+        { value: '', label: 'All projects for this client' },
+        ...(projectsData?.data ?? []).map((p) => ({ value: p.id, label: p.name })),
     ];
 
     return (
@@ -166,6 +187,12 @@ export default function InvoicesPage() {
                         error={errors.clientId?.message}
                         {...register('clientId')}
                     />
+                    <Select
+                        label="Project"
+                        options={projectOptions}
+                        error={errors.projectId?.message}
+                        {...register('projectId')}
+                    />
                     <div className="grid grid-cols-2 gap-4">
                         <Input label="Period Start" type="date" required error={errors.periodStart?.message} {...register('periodStart')} />
                         <Input label="Period End" type="date" required error={errors.periodEnd?.message} {...register('periodEnd')} />
@@ -196,7 +223,7 @@ export default function InvoicesPage() {
                             : 'bg-green-50 text-green-700 border border-green-200'
                             }`}>
                             {(entriesPreview?.data.length ?? 0) === 0
-                                ? 'No unbilled time entries found for this client in the selected period.'
+                                ? 'No unbilled time entries found for this client/project in the selected period.'
                                 : `Found ${entriesPreview?.data.length} unbilled entries totalling ${USD.format(totalPreview)}`}
                         </div>
                     )}
