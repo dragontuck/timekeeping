@@ -57,7 +57,7 @@ export function useCreateTimeEntry() {
 export function useUpdateTimeEntry() {
     const qc = useQueryClient();
     return useMutation({
-        mutationFn: async ({ id, ...input }: { id: string; hours?: number; date?: string; description?: string }) => {
+        mutationFn: async ({ id, ...input }: { id: string; hours?: number; date?: string; description?: string; reason?: string }) => {
             const { data } = await api.patch<ApiResponse<TimeEntry>>(`/time-entries/${id}`, input);
             return data.data;
         },

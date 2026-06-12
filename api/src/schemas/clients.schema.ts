@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { booleanFromQuery } from './common.schema';
 
 export const createClientSchema = z.object({
     name: z.string().min(1).max(200),
@@ -21,7 +22,7 @@ export const clientListQuerySchema = z.object({
     page: z.coerce.number().int().min(1).default(1),
     limit: z.coerce.number().int().min(1).max(100).default(25),
     search: z.string().optional(),
-    isActive: z.coerce.boolean().optional(),
+    isActive: booleanFromQuery.optional(),
 });
 
 export type CreateClientInput = z.infer<typeof createClientSchema>;

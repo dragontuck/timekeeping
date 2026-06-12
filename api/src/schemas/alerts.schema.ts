@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { booleanFromQuery } from './common.schema';
 
 export const createAlertSchema = z.object({
     projectId: z.string().uuid(),
@@ -12,7 +13,7 @@ export const updateAlertSchema = z.object({
 export const alertListQuerySchema = z.object({
     page: z.coerce.number().int().min(1).default(1),
     limit: z.coerce.number().int().min(1).max(100).default(50),
-    isEnabled: z.coerce.boolean().optional(),
+    isEnabled: booleanFromQuery.optional(),
     type: z.enum(['DAILY', 'WEEKLY']).optional(),
 });
 

@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { booleanFromQuery } from './common.schema';
 
 export const createProjectSchema = z.object({
     clientId: z.string().uuid(),
@@ -17,7 +18,7 @@ export const projectListQuerySchema = z.object({
     limit: z.coerce.number().int().min(1).max(100).default(25),
     clientId: z.string().uuid().optional(),
     search: z.string().optional(),
-    isActive: z.coerce.boolean().optional(),
+    isActive: booleanFromQuery.optional(),
 });
 
 export type CreateProjectInput = z.infer<typeof createProjectSchema>;

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { format, startOfWeek, addDays } from 'date-fns';
+import { format, startOfWeek, addDays, subDays, addWeeks, subWeeks } from 'date-fns';
 import { useTimeEntries, useWeeklyTimeEntries, useCreateTimeEntry, useUpdateTimeEntry, useDeleteTimeEntry } from '../../hooks/useTimeEntries';
 import { useProjects } from '../../hooks/useProjects';
 import Table from '../../components/ui/Table';
@@ -62,6 +62,12 @@ export default function TimeEntriesPage() {
         setIsOpen(true);
     };
 
+    const openCreateForDate = (targetDate: string) => {
+        reset({ date: targetDate, hours: 1, projectId: '', description: '' });
+        setEditEntry(null);
+        setIsOpen(true);
+    };
+
     const openEdit = (entry: TimeEntry) => {
         if (entry.isBilled) return;
         reset({
@@ -76,6 +82,22 @@ export default function TimeEntriesPage() {
 
     const closeModal = () => { setIsOpen(false); setEditEntry(null); };
 
+    const goToPreviousPeriod = () => {
+        if (view === 'daily') {
+            setDate(format(subDays(new Date(`${date}T00:00:00`), 1), 'yyyy-MM-dd'));
+            return;
+        }
+        setWeekStart(format(subWeeks(new Date(`${weekStart}T00:00:00`), 1), 'yyyy-MM-dd'));
+    };
+
+    const goToNextPeriod = () => {
+        if (view === 'daily') {
+            setDate(format(addDays(new Date(`${date}T00:00:00`), 1), 'yyyy-MM-dd'));
+            return;
+        }
+        setWeekStart(format(addWeeks(new Date(`${weekStart}T00:00:00`), 1), 'yyyy-MM-dd'));
+    };
+
     const refreshTimeEntryData = async () => {
         setIsRefreshing(true);
         try {
@@ -87,7 +109,10 @@ export default function TimeEntriesPage() {
 
     const onSubmit = async (data: FormData) => {
         if (editEntry) {
-            await updateMutation.mutateAsync({ id: editEntry.id, ...data });
+            const reason = window.prompt('Enter an audit note for this time entry update:')?.trim();
+            if (!reason) return;
+
+            await updateMutation.mutateAsync({ id: editEntry.id, ...data, reason });
         } else {
             await createMutation.mutateAsync(data);
         }
@@ -131,7 +156,13 @@ export default function TimeEntriesPage() {
             {view === 'daily' && (
                 <>
                     <div className="flex items-center gap-4">
+                        <Button variant="secondary" size="sm" onClick={goToPreviousPeriod} aria-label="Previous day">
+                            ←
+                        </Button>
                         <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="w-48" />
+                        <Button variant="secondary" size="sm" onClick={goToNextPeriod} aria-label="Next day">
+                            →
+                        </Button>
                         <span className="text-sm text-gray-500">
                             Total: {(entries?.data ?? []).reduce((s, e) => s + Number(e.hours), 0).toFixed(2)}h
                         </span>
@@ -165,6 +196,9 @@ export default function TimeEntriesPage() {
             {view === 'weekly' && (
                 <>
                     <div className="flex items-center gap-4">
+                        <Button variant="secondary" size="sm" onClick={goToPreviousPeriod} aria-label="Previous week">
+                            ←
+                        </Button>
                         <Input
                             type="date"
                             value={weekStart}
@@ -172,6 +206,9 @@ export default function TimeEntriesPage() {
                             className="w-48"
                             label="Week of (Monday)"
                         />
+                        <Button variant="secondary" size="sm" onClick={goToNextPeriod} aria-label="Next week">
+                            →
+                        </Button>
                         <div className="text-sm text-gray-600">
                             Total: <strong>{(weeklyData?.totalHours ?? 0).toFixed(2)}h</strong> &nbsp;/&nbsp;
                             {USD.format(weeklyData?.totalCost ?? 0)}
@@ -184,9 +221,12 @@ export default function TimeEntriesPage() {
                                 <div key={d} className="bg-white rounded-lg border border-gray-200 p-4">
                                     <div className="flex items-center justify-between mb-3">
                                         <h3 className="font-semibold text-gray-900 text-sm">{label}</h3>
-                                        <span className="text-xs text-gray-500">
-                                            {dayEntries.reduce((s, e) => s + Number(e.hours), 0).toFixed(2)}h
-                                        </span>
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-xs text-gray-500">
+                                                {dayEntries.reduce((s, e) => s + Number(e.hours), 0).toFixed(2)}h
+                                            </span>
+                                            <Button size="sm" variant="secondary" onClick={() => openCreateForDate(d)}>+ Add</Button>
+                                        </div>
                                     </div>
                                     {dayEntries.length === 0
                                         ? <p className="text-xs text-gray-400">No entries</p>

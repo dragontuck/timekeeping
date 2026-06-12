@@ -51,7 +51,15 @@ export default function ProjectsPage() {
 
     const onSubmit = async (data: FormData) => {
         if (editProject) {
-            await updateMutation.mutateAsync({ id: editProject.id, ...data, costPerHour: String(data.costPerHour) });
+            const reason = window.prompt('Enter an audit note for this project update:')?.trim();
+            if (!reason) return;
+
+            await updateMutation.mutateAsync({
+                id: editProject.id,
+                ...data,
+                costPerHour: String(data.costPerHour),
+                reason,
+            });
         } else {
             await createMutation.mutateAsync(data);
         }

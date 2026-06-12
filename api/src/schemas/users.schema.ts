@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { booleanFromQuery } from './common.schema';
 
 const passwordSchema = z
     .string()
@@ -42,7 +43,7 @@ export const userListQuerySchema = z.object({
     limit: z.coerce.number().int().min(1).max(100).default(25),
     search: z.string().optional(),
     role: z.enum(['ADMIN', 'STANDARD']).optional(),
-    isActive: z.coerce.boolean().optional(),
+    isActive: booleanFromQuery.optional(),
 });
 
 export type CreateUserInput = z.infer<typeof createUserSchema>;

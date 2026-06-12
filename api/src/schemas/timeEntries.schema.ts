@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { booleanFromQuery } from './common.schema';
 
 const isoDateString = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Date must be YYYY-MM-DD');
 
@@ -25,7 +26,7 @@ export const timeEntryListQuerySchema = z.object({
     clientId: z.string().uuid().optional(),
     startDate: isoDateString.optional(),
     endDate: isoDateString.optional(),
-    isBilled: z.coerce.boolean().optional(),
+    isBilled: booleanFromQuery.optional(),
 });
 
 export const weeklyQuerySchema = z.object({

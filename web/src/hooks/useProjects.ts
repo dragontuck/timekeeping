@@ -49,7 +49,7 @@ export function useCreateProject() {
 export function useUpdateProject() {
     const qc = useQueryClient();
     return useMutation({
-        mutationFn: async ({ id, ...input }: Partial<Project> & { id: string }) => {
+        mutationFn: async ({ id, ...input }: Partial<Project> & { id: string; reason?: string }) => {
             const { data } = await api.patch<ApiResponse<Project>>(`/projects/${id}`, input);
             return data.data;
         },
